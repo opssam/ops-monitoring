@@ -1,0 +1,35 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 10m
+  repeat_interval: 1h
+  receiver: "null"
+  routes:
+    - receiver: "slack-notifications"
+      matchers:
+        - job=~"prometheus"
+
+receivers:
+  - name: "null"
+  - name: 'slack-notifications'
+    slack_configs:
+    - channel: ''
+      api_url: ''
+      send_resolved: true
+      title: '{{ template "slack.default.title" . }}'
+      text: |
+        {{- $len := len .Alerts -}}
+        *Summary*: {{ (index .Alerts 0).Annotations.summary }}
+        *Details:*
+        {{- range .Alerts }}
+        - *Severity:* {{ .Labels.severity }}
+        - *Description:* {{ .Annotations.description }}
+        - *Instance:* {{ .Labels.instance }}
+        {{- if lt $len 1 }}\n---{{- end -}}
+        {{- end }}
+      color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
+      footer: "Prometheus AlertManager"
+      mrkdwn_in: ["text"]
